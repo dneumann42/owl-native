@@ -9,6 +9,7 @@ pub struct Reader {
 #[derive(Debug, PartialEq)]
 pub enum ReaderError {
     NotANumber,
+    NotABoolean,
     InvalidNumber(String),
     GenericError(String),
 }
@@ -39,6 +40,24 @@ impl Reader {
     pub fn skip_whitespace(self: &mut Self, code: &String) {
         while !self.at_eof(code) && self.is_whitespace(code) {
             self.it += 1
+        }
+    }
+
+    pub fn read_boolean(self: &mut Self, code: &String) -> Result<Value, ReaderError> {
+        let start = self.it;
+        if !self.chr(code).map_or(false, |ch| ch == '#') {
+            return Err(ReaderError::NotABoolean);
+        }
+        self.it += 1;
+        if self.chr(code).map_or(false, |ch| ch == 't' || ch == 'T') {
+            self.it += 1;
+            Ok(Value::Bool(true))
+        } else if self.chr(code).map_or(false, |ch| ch == 'f' || ch == 'F') {
+            self.it += 1;
+            Ok(Value::Bool(false))
+        } else {
+            self.it = start;
+            Err(ReaderError::NotABoolean)
         }
     }
 
@@ -94,8 +113,13 @@ impl Reader {
         self.skip_whitespace(code);
 
         match self.read_number(code) {
-            Ok(number) => return Ok(number),
+            n @ Ok(_) => return n,
             e @ Err(ReaderError::InvalidNumber(_)) => return e,
+            _ => {}
+        }
+
+        match self.read_boolean(code) {
+            b @ Ok(_) => return b,
             _ => {}
         }
 

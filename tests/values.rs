@@ -29,3 +29,13 @@ fn reading_numbers() {
         Err(ReaderError::InvalidNumber("Too many dots".into()))
     )
 }
+
+#[test]
+fn reading_booleans() {
+    let code = String::from("#t #T #f #F");
+    let mut reader = Reader::new();
+    assert_eq!(reader.read(&code).unwrap(), Value::Bool(true));
+    assert_eq!(reader.read(&code).unwrap(), Value::Bool(true));
+    assert_eq!(reader.read(&code).unwrap(), Value::Bool(false));
+    assert_eq!(reader.read(&code).unwrap(), Value::Bool(false));
+}
