@@ -10,9 +10,14 @@ pub struct Reader {
 pub enum ReaderError {
     NotANumber,
     NotABoolean,
+    NotAString,
+    UnterminatedString,
     InvalidNumber(String),
+    InvalidSymbol(String),
     GenericError(String),
 }
+
+type ReaderResult = Result<Value, ReaderError>;
 
 impl Reader {
     pub fn new() -> Self {
@@ -43,7 +48,7 @@ impl Reader {
         }
     }
 
-    pub fn read_boolean(self: &mut Self, code: &String) -> Result<Value, ReaderError> {
+    pub fn read_boolean(self: &mut Self, code: &String) -> ReaderResult {
         let start = self.it;
         if !self.chr(code).map_or(false, |ch| ch == '#') {
             return Err(ReaderError::NotABoolean);
@@ -61,7 +66,7 @@ impl Reader {
         }
     }
 
-    pub fn read_number(self: &mut Self, code: &String) -> Result<Value, ReaderError> {
+    pub fn read_number(self: &mut Self, code: &String) -> ReaderResult {
         let start = self.it;
         let mut is_real = false;
 
@@ -109,7 +114,35 @@ impl Reader {
         Err(ReaderError::NotANumber)
     }
 
-    pub fn read(self: &mut Self, code: &String) -> Result<Value, ReaderError> {
+    pub fn read_string(self: &mut Self, code: &String) -> ReaderResult {
+        let start = self.it;
+        if !self.chr(code).map_or(false, |ch| ch == '"') {
+            return Err(ReaderError::NotAString);
+        }
+        self.it += 1;
+        while !self.at_eof(code) {
+            if self.chr(code).map_or(false, |ch| ch == '"') {
+                self.it += 1;
+                return Ok(Value::Str(code[start + 1..self.it - 1].into()));
+            }
+            self.it += 1;
+        }
+        self.it = start;
+        Err(ReaderError::UnterminatedString)
+    }
+
+    pub fn read_symbol(self: &mut Self, code: &String) -> ReaderResult {
+        let start = self.it;
+        while !self.at_eof(code) && !self.is_whitespace(code) {
+            self.it += 1;
+        }
+        if self.it == start {
+            return Err(ReaderError::InvalidSymbol("Empty symbol".into()));
+        }
+        return Ok(Value::Str(code[start..self.it - 1].into()));
+    }
+
+    pub fn read(self: &mut Self, code: &String) -> ReaderResult {
         self.skip_whitespace(code);
 
         match self.read_number(code) {
@@ -123,6 +156,14 @@ impl Reader {
             _ => {}
         }
 
-        Err(ReaderError::GenericError("".into()))
+        match self.read_string(code) {
+            s @ Ok(_) => return s,
+            _ => {}
+        }
+
+        match self.read_symbol(code) {
+            s @ Ok(_) => return s,
+            e @ Err(_) => return e,
+        }
     }
 }

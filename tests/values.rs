@@ -39,3 +39,23 @@ fn reading_booleans() {
     assert_eq!(reader.read(&code).unwrap(), Value::Bool(false));
     assert_eq!(reader.read(&code).unwrap(), Value::Bool(false));
 }
+
+#[test]
+fn reading_symbols() {
+    assert_eq!(false, true)
+}
+
+#[test]
+fn reading_strings() {
+    let code = String::from(r#" "Hello, World!" "#);
+    let mut reader = Reader::new();
+    assert_eq!(
+        reader.read(&code).unwrap(),
+        Value::Str("Hello, World!".into())
+    );
+}
+
+#[test]
+fn reading_lists() {
+    assert_eq!(false, true)
+}
