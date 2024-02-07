@@ -11,7 +11,10 @@ pub enum ReaderError {
     NotANumber,
     NotABoolean,
     NotAString,
+    NotAList,
+    NotAFunctionCall,
     UnterminatedString,
+    UnbalancedParenthesis,
     InvalidNumber(String),
     InvalidSymbol(String),
     GenericError(String),
@@ -40,6 +43,13 @@ impl Reader {
         code.chars()
             .nth(self.it)
             .map_or(false, |ch| ch.is_whitespace())
+    }
+
+    pub fn is_delimiter(self: &Self, code: &String) -> bool {
+        !self.at_eof(code) && self.chr(code).map_or(false, |ch| match ch {
+            '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '\'' => true,
+            _ => false
+        })
     }
 
     pub fn skip_whitespace(self: &mut Self, code: &String) {
@@ -133,13 +143,58 @@ impl Reader {
 
     pub fn read_symbol(self: &mut Self, code: &String) -> ReaderResult {
         let start = self.it;
-        while !self.at_eof(code) && !self.is_whitespace(code) {
+        while !self.at_eof(code) && !self.is_whitespace(code) && !self.is_delimiter(code) {
             self.it += 1;
         }
         if self.it == start {
             return Err(ReaderError::InvalidSymbol("Empty symbol".into()));
         }
-        return Ok(Value::Str(code[start..self.it - 1].into()));
+        return Ok(Value::Sym(code[start..self.it].into()));
+    }
+
+    pub fn read_list(self: &mut Self, code: &String) -> ReaderResult {
+        let mut xs = Vec::new();
+        if self.chr(code).map_or(false, |ch| ch == '(') {
+            self.it += 1;
+            while !self.at_eof(code) {
+                let exp = self.read(code)?;
+                xs.push(Box::new(exp));
+                self.skip_whitespace(code);
+
+                if self.at_eof(code) {
+                    return Err(ReaderError::UnbalancedParenthesis)
+                } else if self.chr(code).map_or(false, |ch| ch == ')') {
+                    self.it += 1;
+                    return Ok(Value::List(xs))
+                }
+            }
+        }
+        Err(ReaderError::NotAList)
+    }
+
+    pub fn read_function_call(self: &mut Self, code: &String) -> ReaderResult {
+        let start = self.it;
+        let sym = self.read_symbol(code)?;
+        let list = match self.read_list(code) {
+            o @ Ok(_) => o,
+            e @ Err(ReaderError::UnbalancedParenthesis) => {
+                return e;
+            }
+            e @ Err(_) => {
+                self.it = start;
+                return e;
+            }
+        }?;
+        match list {
+            Value::List(xs) => {
+                let mut vs = xs;
+                vs.insert(0, Box::new(sym));
+                Ok(Value::List(vs))
+            }
+            _ => {
+                Err(ReaderError::NotAFunctionCall)
+            }
+        }
     }
 
     pub fn read(self: &mut Self, code: &String) -> ReaderResult {
@@ -161,9 +216,21 @@ impl Reader {
             _ => {}
         }
 
-        match self.read_symbol(code) {
+        match self.read_list(code) {
             s @ Ok(_) => return s,
-            e @ Err(_) => return e,
+            e @ Err(ReaderError::UnbalancedParenthesis) => return e,
+            _ => {}
+        }
+
+        match self.read_function_call(code) {
+            s @ Ok(_) => return s,
+            e @ Err(ReaderError::UnbalancedParenthesis) => return e,
+            _ => {}
+        }
+
+        return match self.read_symbol(code) {
+            s @ Ok(_) => s,
+            e @ Err(_) => e,
         }
     }
 }
