@@ -39,6 +39,14 @@ impl Reader {
         code.chars().nth(self.it)
     }
 
+
+    pub fn is_chr_p(self: &Self, code: &String, f: fn(char) -> bool) -> bool {
+        self.chr(code).map_or(false, f)
+    }
+    pub fn is_chr(self: &Self, code: &String, chr: char) -> bool {
+        self.chr(code).map_or(false, |ch| ch == chr)
+    }
+
     pub fn is_whitespace(self: &Self, code: &String) -> bool {
         code.chars()
             .nth(self.it)
@@ -60,7 +68,7 @@ impl Reader {
 
     pub fn read_boolean(self: &mut Self, code: &String) -> ReaderResult {
         let start = self.it;
-        if !self.chr(code).map_or(false, |ch| ch == '#') {
+        if !self.is_chr(code, '#') {
             return Err(ReaderError::NotABoolean);
         }
         self.it += 1;
@@ -80,11 +88,11 @@ impl Reader {
         let start = self.it;
         let mut is_real = false;
 
-        if self.chr(code).map_or(false, |ch| ch == '-') {
+        if self.is_chr(code, '-') {
             self.it += 1;
         }
 
-        if self.chr(code).map_or(false, |ch| ch == '.') {
+        if self.is_chr(code, '.') {
             self.it += 1;
             is_real = true;
         }
@@ -95,7 +103,7 @@ impl Reader {
         }
 
         while !self.at_eof(code) {
-            if self.chr(code).map_or(false, |ch| ch == '.') {
+            if self.is_chr(code, '.') {
                 if is_real {
                     self.it = start;
                     return Err(ReaderError::InvalidNumber("Too many dots".into()));
@@ -126,12 +134,12 @@ impl Reader {
 
     pub fn read_string(self: &mut Self, code: &String) -> ReaderResult {
         let start = self.it;
-        if !self.chr(code).map_or(false, |ch| ch == '"') {
+        if !self.is_chr(code, '"') {
             return Err(ReaderError::NotAString);
         }
         self.it += 1;
         while !self.at_eof(code) {
-            if self.chr(code).map_or(false, |ch| ch == '"') {
+            if self.is_chr(code, '"') {
                 self.it += 1;
                 return Ok(Value::Str(code[start + 1..self.it - 1].into()));
             }
@@ -154,7 +162,7 @@ impl Reader {
 
     pub fn read_list(self: &mut Self, code: &String) -> ReaderResult {
         let mut xs = Vec::new();
-        if self.chr(code).map_or(false, |ch| ch == '(') {
+        if self.is_chr(code, '(') {
             self.it += 1;
             while !self.at_eof(code) {
                 let exp = self.read(code)?;
@@ -163,7 +171,7 @@ impl Reader {
 
                 if self.at_eof(code) {
                     return Err(ReaderError::UnbalancedParenthesis)
-                } else if self.chr(code).map_or(false, |ch| ch == ')') {
+                } else if self.is_chr(code, ')') {
                     self.it += 1;
                     return Ok(Value::List(xs))
                 }
