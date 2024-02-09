@@ -15,6 +15,7 @@ pub enum ReaderError {
     NotAFunctionCall,
     UnterminatedString,
     UnbalancedParenthesis,
+    UnbalancedBraces,
     InvalidNumber(String),
     InvalidSymbol(String),
     GenericError(String),
@@ -39,7 +40,6 @@ impl Reader {
         code.chars().nth(self.it)
     }
 
-
     pub fn is_chr_p(self: &Self, code: &String, f: fn(char) -> bool) -> bool {
         self.chr(code).map_or(false, f)
     }
@@ -54,10 +54,11 @@ impl Reader {
     }
 
     pub fn is_delimiter(self: &Self, code: &String) -> bool {
-        !self.at_eof(code) && self.chr(code).map_or(false, |ch| match ch {
-            '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '\'' => true,
-            _ => false
-        })
+        !self.at_eof(code)
+            && self.chr(code).map_or(false, |ch| match ch {
+                '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '\'' => true,
+                _ => false,
+            })
     }
 
     pub fn skip_whitespace(self: &mut Self, code: &String) {
@@ -168,12 +169,31 @@ impl Reader {
                 let exp = self.read(code)?;
                 xs.push(Box::new(exp));
                 self.skip_whitespace(code);
-
                 if self.at_eof(code) {
-                    return Err(ReaderError::UnbalancedParenthesis)
+                    return Err(ReaderError::UnbalancedParenthesis);
                 } else if self.is_chr(code, ')') {
                     self.it += 1;
-                    return Ok(Value::List(xs))
+                    return Ok(Value::List(xs));
+                }
+            }
+        }
+        Err(ReaderError::NotAList)
+    }
+
+    pub fn read_do_block(self: &mut Self, code: &String) -> ReaderResult {
+        let mut xs = Vec::new();
+        if self.is_chr(code, '{') {
+            self.it += 1;
+            while !self.at_eof(code) {
+                let exp = self.read(code)?;
+                xs.push(Box::new(exp));
+                self.skip_whitespace(code);
+                if self.at_eof(code) {
+                    return Err(ReaderError::UnbalancedBraces);
+                } else if self.is_chr(code, '}') {
+                    self.it += 1;
+                    xs.insert(0, Box::new(Value::Sym("do".into())));
+                    return Ok(Value::List(xs));
                 }
             }
         }
@@ -199,9 +219,7 @@ impl Reader {
                 vs.insert(0, Box::new(sym));
                 Ok(Value::List(vs))
             }
-            _ => {
-                Err(ReaderError::NotAFunctionCall)
-            }
+            _ => Err(ReaderError::NotAFunctionCall),
         }
     }
 
@@ -230,6 +248,12 @@ impl Reader {
             _ => {}
         }
 
+        match self.read_do_block(code) {
+            s @ Ok(_) => return s,
+            e @ Err(ReaderError::UnbalancedBraces) => return e,
+            _ => {}
+        }
+
         match self.read_function_call(code) {
             s @ Ok(_) => return s,
             e @ Err(ReaderError::UnbalancedParenthesis) => return e,
@@ -239,6 +263,6 @@ impl Reader {
         return match self.read_symbol(code) {
             s @ Ok(_) => s,
             e @ Err(_) => e,
-        }
+        };
     }
 }

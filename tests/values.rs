@@ -1,7 +1,7 @@
 use owl::{
     reader::{Reader, ReaderError},
+    values::Value::{Bool, List, Num, Str, Sym},
 };
-use owl::values::Value::{Bool, List, Num, Str, Sym};
 
 #[test]
 fn skipping_whitespace() {
@@ -52,10 +52,7 @@ fn reading_symbols() {
 fn reading_strings() {
     let code = String::from(r#" "Hello, World!" "#);
     let mut reader = Reader::new();
-    assert_eq!(
-        reader.read(&code).unwrap(),
-        Str("Hello, World!".into())
-    );
+    assert_eq!(reader.read(&code).unwrap(), Str("Hello, World!".into()));
 }
 
 #[test]
@@ -105,4 +102,31 @@ fn reading_function_calls() {
             assert_eq!(false, true);
         }
     }
+}
+
+#[test]
+fn reading_do_blocks() {
+    let code = String::from("{ a 1 2 3 }");
+    let mut reader = Reader::new();
+    match reader.read(&code).unwrap() {
+        List(xs) => {
+            let a0 = xs.get(0).unwrap().as_ref();
+            let a1 = xs.get(1).unwrap().as_ref();
+            let a2 = xs.get(2).unwrap().as_ref();
+            let a3 = xs.get(3).unwrap().as_ref();
+            let a4 = xs.get(4).unwrap().as_ref();
+            assert_eq!(a0, &Sym("do".into()));
+            assert_eq!(a1, &Sym("a".into()));
+            assert_eq!(a2, &Num(1.0));
+            assert_eq!(a3, &Num(2.0));
+            assert_eq!(a4, &Num(3.0));
+        }
+        _ => {
+            assert_eq!(false, true);
+        }
+    }
+
+    reader.reset();
+    let error_code = String::from("{a {b c}");
+    assert_eq!(reader.read(&error_code), Err(ReaderError::UnbalancedBraces))
 }
