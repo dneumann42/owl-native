@@ -103,7 +103,7 @@ impl Reader {
             return Err(ReaderError::NotANumber);
         }
 
-        while !self.at_eof(code) {
+        loop {
             if self.is_chr(code, '.') {
                 if is_real {
                     self.it = start;
@@ -125,6 +125,10 @@ impl Reader {
                     .parse::<f64>()
                     .map_err(|e| ReaderError::InvalidNumber(e.to_string()))?;
                 return Ok(Value::Num(n));
+            }
+
+            if self.at_eof(code) {
+                break;
             }
 
             self.it += 1;
@@ -167,7 +171,7 @@ impl Reader {
             self.it += 1;
             while !self.at_eof(code) {
                 let exp = self.read(code)?;
-                xs.push(Box::new(exp));
+                xs.push(exp);
                 self.skip_whitespace(code);
                 if self.at_eof(code) {
                     return Err(ReaderError::UnbalancedParenthesis);
@@ -186,13 +190,13 @@ impl Reader {
             self.it += 1;
             while !self.at_eof(code) {
                 let exp = self.read(code)?;
-                xs.push(Box::new(exp));
+                xs.push(exp);
                 self.skip_whitespace(code);
                 if self.at_eof(code) {
                     return Err(ReaderError::UnbalancedBraces);
                 } else if self.is_chr(code, '}') {
                     self.it += 1;
-                    xs.insert(0, Box::new(Value::Sym("do".into())));
+                    xs.insert(0, Value::Sym("do".into()));
                     return Ok(Value::List(xs));
                 }
             }
@@ -216,7 +220,7 @@ impl Reader {
         match list {
             Value::List(xs) => {
                 let mut vs = xs;
-                vs.insert(0, Box::new(sym));
+                vs.insert(0, sym);
                 Ok(Value::List(vs))
             }
             _ => Err(ReaderError::NotAFunctionCall),

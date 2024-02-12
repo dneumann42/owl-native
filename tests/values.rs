@@ -13,8 +13,9 @@ fn skipping_whitespace() {
 
 #[test]
 fn reading_numbers() {
-    let code = String::from(r" 123 -54 0.0 .3 -.3 3.1415926 ");
+    let code = String::from(r"1 123 -54 0.0 .3 -.3 3.1415926 ");
     let mut reader = Reader::new();
+    assert_eq!(reader.read(&code).unwrap(), Num(1.0));
     assert_eq!(reader.read(&code).unwrap(), Num(123.0));
     assert_eq!(reader.read(&code).unwrap(), Num(-54.0));
     assert_eq!(reader.read(&code).unwrap(), Num(0.0));
@@ -61,10 +62,10 @@ fn reading_lists() {
     let mut reader = Reader::new();
     match reader.read(&code).unwrap() {
         List(xs) => {
-            let a1 = xs.get(0).unwrap().as_ref();
-            let a2 = xs.get(1).unwrap().as_ref();
-            let a3 = xs.get(2).unwrap().as_ref();
-            let a4 = xs.get(3).unwrap().as_ref();
+            let a1 = xs.get(0).unwrap();
+            let a2 = xs.get(1).unwrap();
+            let a3 = xs.get(2).unwrap();
+            let a4 = xs.get(3).unwrap();
             assert_eq!(a1, &Sym("a".into()));
             assert_eq!(a2, &Num(1.0));
             assert_eq!(a3, &Num(2.0));
@@ -89,10 +90,10 @@ fn reading_function_calls() {
     let mut reader = Reader::new();
     match reader.read(&code).unwrap() {
         List(xs) => {
-            let a1 = xs.get(0).unwrap().as_ref();
-            let a2 = xs.get(1).unwrap().as_ref();
-            let a3 = xs.get(2).unwrap().as_ref();
-            let a4 = xs.get(3).unwrap().as_ref();
+            let a1 = xs.get(0).unwrap();
+            let a2 = xs.get(1).unwrap();
+            let a3 = xs.get(2).unwrap();
+            let a4 = xs.get(3).unwrap();
             assert_eq!(a1, &Sym("a".into()));
             assert_eq!(a2, &Num(1.0));
             assert_eq!(a3, &Num(2.0));
@@ -110,11 +111,11 @@ fn reading_do_blocks() {
     let mut reader = Reader::new();
     match reader.read(&code).unwrap() {
         List(xs) => {
-            let a0 = xs.get(0).unwrap().as_ref();
-            let a1 = xs.get(1).unwrap().as_ref();
-            let a2 = xs.get(2).unwrap().as_ref();
-            let a3 = xs.get(3).unwrap().as_ref();
-            let a4 = xs.get(4).unwrap().as_ref();
+            let a0 = xs.get(0).unwrap();
+            let a1 = xs.get(1).unwrap();
+            let a2 = xs.get(2).unwrap();
+            let a3 = xs.get(3).unwrap();
+            let a4 = xs.get(4).unwrap();
             assert_eq!(a0, &Sym("do".into()));
             assert_eq!(a1, &Sym("a".into()));
             assert_eq!(a2, &Num(1.0));
