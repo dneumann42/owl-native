@@ -1,6 +1,6 @@
 use core::panic;
 use std::collections::HashMap;
-use std::os::unix::fs::MetadataExt;
+use std::fmt::Pointer;
 
 use crate::reader::Reader;
 use crate::values::Value::{Atom, Bool, Func, List, Num, Str, Sym};
@@ -122,6 +122,29 @@ impl Intrinsic for Div {
     }
 }
 
+struct Eqauals;
+impl Intrinsic for Eqauals {
+    fn name(self: &Self) -> &'static str {
+        "="
+    }
+
+    fn eval(self: &Self, evaluator: &Evaluator, env: &mut Env, args: Value) -> Value {
+        let head = car(&args);
+        match cdr(&args) {
+            List(xs) => {
+                for arg in xs {
+                    let value = evaluator.eval(env, arg);
+                    if head.clone() != value {
+                        return Value::Bool(false);
+                    }
+                }
+                return Value::Bool(true);
+            }
+            _ => Value::Bool(false),
+        }
+    }
+}
+
 impl Evaluator {
     pub fn new() -> Self {
         let mut this = Self {
@@ -142,6 +165,7 @@ impl Evaluator {
 
     pub fn base_intrinsics(self: &mut Self) {
         self.add_intrinsic(Eval {});
+        self.add_intrinsic(Eqauals {});
         self.add_intrinsic(Add {});
         self.add_intrinsic(Mul {});
         self.add_intrinsic(Sub {});
@@ -171,16 +195,14 @@ impl Evaluator {
                 let ident = xs.get(0).unwrap_or(&Value::None).to_string();
                 let args = &xs[1..].to_vec();
 
-                if self.is_intrinsic(&ident) {
-                    let intr = self
-                        .intrinsics
-                        .get(&ident.clone())
-                        .expect("Failed to get intrinsic")
-                        .as_ref();
-                    return intr.eval(&self, env, Value::List(args.clone()));
-                }
-
                 match ident.as_str() {
+                    "do" => {
+                        let mut result = Value::None;
+                        for arg in args {
+                            result = self.evaluate(env, arg);
+                        }
+                        return result;
+                    }
                     "if" => {
                         if args.len() < 2 {
                             panic!("If is missing arguments");
@@ -198,8 +220,39 @@ impl Evaluator {
                             )
                             .clone();
                     }
+                    "def" => {
+                        let sym = &args[0];
+                        assert!(matches!(sym, Sym(_)));
+                        let value = self.evaluate(env, &args[1]);
+                        env.set(sym.to_string(), value.clone());
+                        &value
+                    }
+                    "set" => {
+                        let sym = &args[0];
+                        assert!(matches!(sym, Sym(_)));
+                        assert!(env.has(sym.to_string()));
+                        let value = self.evaluate(env, &args[1]);
+                        env.set(sym.to_string(), value.clone());
+                        &value.clone()
+                    }
+                    "fun" => {
+                        let sym = &args[0];
+                        assert!(matches!(sym, Sym(_)));
+                        assert!(!env.has(sym.to_string()));
+
+                        &Value::None
+                    }
                     _ => &Value::None,
                 };
+
+                if self.is_intrinsic(&ident) {
+                    let intr = self
+                        .intrinsics
+                        .get(&ident.clone())
+                        .expect("Failed to get intrinsic")
+                        .as_ref();
+                    return intr.eval(&self, env, Value::List(args.clone()));
+                }
 
                 Value::None
             }
@@ -208,7 +261,8 @@ impl Evaluator {
 
     pub fn eval<T: ToString>(self: &Self, env: &mut Env, code: T) -> Value {
         let mut reader = Reader::new();
-        match reader.read(&code.to_string()) {
+
+        match reader.read_script(&code.to_string()) {
             Ok(v) => self.evaluate(env, &v),
             Err(e) => {
                 println!("Error {:?}", e);

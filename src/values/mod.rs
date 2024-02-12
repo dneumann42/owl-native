@@ -34,6 +34,7 @@ impl Value {
             _ => 0.0,
         }
     }
+
     pub fn as_vec(self) -> Vec<Value> {
         match self {
             Value::List(xs) => xs,
@@ -89,6 +90,10 @@ impl Env {
             data: HashMap::new(),
             parent: None,
         }
+    }
+
+    pub fn has<T: ToString>(self: &mut Self, ident: T) -> bool {
+        self.data.contains_key(&ident.to_string())
     }
 
     pub fn set<T: ToString>(self: &mut Self, ident: T, value: Value) {

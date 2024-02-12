@@ -1,4 +1,4 @@
-use std::char;
+use std::{char, fmt::Pointer};
 
 use crate::values::Value;
 
@@ -223,7 +223,10 @@ impl Reader {
                 vs.insert(0, sym);
                 Ok(Value::List(vs))
             }
-            _ => Err(ReaderError::NotAFunctionCall),
+            _ => {
+                self.it = start;
+                Err(ReaderError::NotAFunctionCall)
+            }
         }
     }
 
@@ -264,9 +267,17 @@ impl Reader {
             _ => {}
         }
 
-        return match self.read_symbol(code) {
+        match self.read_symbol(code) {
             s @ Ok(_) => s,
             e @ Err(_) => e,
-        };
+        }
+    }
+
+    pub fn read_script(self: &mut Self, code: &String) -> ReaderResult {
+        let mut xs = vec![Value::Sym("do".into())];
+        while !self.at_eof(code) {
+            xs.push(self.read(code)?);
+        }
+        Ok(Value::List(xs))
     }
 }

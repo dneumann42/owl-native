@@ -1,7 +1,7 @@
 use evaluator::Intrinsic;
 
 use crate::{
-    evaluator::Evaluator,
+    evaluator::{eval, Evaluator},
     values::{Env, Value},
 };
 
@@ -9,13 +9,12 @@ pub mod evaluator;
 pub mod reader;
 pub mod values;
 
-fn main() {
-    let mut env = Env::new();
-    env.set("x", Value::Num(123.0));
+use values::Value::Num;
 
-    let evaluator = Evaluator::new();
-    assert_eq!(
-        evaluator.eval(&mut env, r#"(eval "(+ 1 2 3)")"#),
-        Value::Num(6.0)
-    );
+fn main() {}
+
+#[test]
+fn evaluate_math_expressions() {
+    assert_eq!(eval("(+ 1 2 3)"), Num(6.0));
+    assert_eq!(eval("(+ 1 (+ 1 2) 3)"), Num(7.0));
 }

@@ -1,6 +1,6 @@
 use owl::{
     reader::{Reader, ReaderError},
-    values::Value::{Bool, List, Num, Str, Sym},
+    values::Value::{self, Bool, List, Num, Str, Sym},
 };
 
 #[test]
@@ -43,10 +43,11 @@ fn reading_booleans() {
 
 #[test]
 fn reading_symbols() {
-    let code = String::from("hello-world test54");
+    let code = String::from("hello-world test54 a");
     let mut reader = Reader::new();
     assert_eq!(reader.read(&code).unwrap(), Sym("hello-world".into()));
     assert_eq!(reader.read(&code).unwrap(), Sym("test54".into()));
+    assert_eq!(reader.read(&code).unwrap(), Sym("a".into()));
 }
 
 #[test]
@@ -75,6 +76,30 @@ fn reading_lists() {
             assert_eq!(false, true);
         }
     }
+
+    let code2 = r#"
+    (def x (= (+ 1 2) 3))
+    x
+    "#
+    .to_string();
+
+    reader.reset();
+    let def = reader.read(&code2).unwrap();
+    assert_eq!(
+        def,
+        Value::List(vec![
+            Sym("def".into()),
+            Sym("x".into()),
+            Value::List(vec![
+                Sym("=".into()),
+                Value::List(vec![Sym("+".into()), Num(1.0), Num(2.0),]),
+                Num(3.0)
+            ])
+        ])
+    );
+    reader.skip_whitespace(&code2);
+    let sym = reader.read(&code).unwrap();
+    assert_eq!(sym, Sym("x".into()));
 
     reader.reset();
     let error_code = String::from("(a (b c)");
