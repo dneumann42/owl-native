@@ -98,7 +98,7 @@ fn reading_lists() {
         ])
     );
     reader.skip_whitespace(&code2);
-    let sym = reader.read(&code).unwrap();
+    let sym = reader.read(&code2).unwrap();
     assert_eq!(sym, Sym("x".into()));
 
     reader.reset();
