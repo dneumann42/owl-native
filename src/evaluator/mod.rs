@@ -186,6 +186,63 @@ impl Evaluator {
         }
     }
 
+    pub fn evaluate_special_form(
+        self: &Self,
+        env: &mut Env,
+        ident: &String,
+        args: &Vec<Value>,
+    ) -> Option<Value> {
+        match ident.as_str() {
+            "do" => {
+                let mut result = Value::None;
+                for arg in args {
+                    result = self.evaluate(env, arg);
+                }
+                Some(result)
+            }
+            "if" => {
+                if args.len() < 2 {
+                    panic!("If is missing arguments");
+                }
+                Some(
+                    self.evaluate_if(
+                        env,
+                        &args[0],
+                        &args[1],
+                        if args.len() > 2 {
+                            &args[2]
+                        } else {
+                            &Value::None
+                        },
+                    )
+                    .clone(),
+                )
+            }
+            "def" => {
+                let sym = &args[0];
+                assert!(matches!(sym, Sym(_)));
+                let value = self.evaluate(env, &args[1]);
+                env.set(sym.to_string(), value.clone());
+                Some(value)
+            }
+            "set" => {
+                let sym = &args[0];
+                assert!(matches!(sym, Sym(_)));
+                assert!(env.has(sym.to_string()));
+                let value = self.evaluate(env, &args[1]);
+                env.set(sym.to_string(), value.clone());
+                Some(value)
+            }
+            "fun" => {
+                let sym = &args[0];
+                assert!(matches!(sym, Sym(_)));
+                assert!(!env.has(sym.to_string()));
+                Some(Value::None)
+            }
+            _ => None,
+        }
+    }
+
     pub fn evaluate(self: &Self, env: &mut Env, value: &Value) -> Value {
         match value {
             Num(_) | Str(_) | Atom(_) | Bool(_) | Func(_) | Value::None => value.clone(),
@@ -195,55 +252,10 @@ impl Evaluator {
                 let ident = xs.get(0).unwrap_or(&Value::None).to_string();
                 let args = &xs[1..].to_vec();
 
-                match ident.as_str() {
-                    "do" => {
-                        let mut result = Value::None;
-                        for arg in args {
-                            result = self.evaluate(env, arg);
-                        }
-                        return result;
-                    }
-                    "if" => {
-                        if args.len() < 2 {
-                            panic!("If is missing arguments");
-                        }
-                        return self
-                            .evaluate_if(
-                                env,
-                                &args[0],
-                                &args[1],
-                                if args.len() > 2 {
-                                    &args[2]
-                                } else {
-                                    &Value::None
-                                },
-                            )
-                            .clone();
-                    }
-                    "def" => {
-                        let sym = &args[0];
-                        assert!(matches!(sym, Sym(_)));
-                        let value = self.evaluate(env, &args[1]);
-                        env.set(sym.to_string(), value.clone());
-                        &value
-                    }
-                    "set" => {
-                        let sym = &args[0];
-                        assert!(matches!(sym, Sym(_)));
-                        assert!(env.has(sym.to_string()));
-                        let value = self.evaluate(env, &args[1]);
-                        env.set(sym.to_string(), value.clone());
-                        &value.clone()
-                    }
-                    "fun" => {
-                        let sym = &args[0];
-                        assert!(matches!(sym, Sym(_)));
-                        assert!(!env.has(sym.to_string()));
-
-                        &Value::None
-                    }
-                    _ => &Value::None,
-                };
+                match self.evaluate_special_form(env, &ident, args) {
+                    Some(v) => return v,
+                    None => {} // not a special form
+                }
 
                 if self.is_intrinsic(&ident) {
                     let intr = self
