@@ -1,3 +1,5 @@
+use core::panic;
+
 use owl::{
     reader::{Reader, ReaderError},
     values::Value::{self, Bool, List, Num, Str, Sym},
@@ -72,9 +74,7 @@ fn reading_lists() {
             assert_eq!(a3, &Num(2.0));
             assert_eq!(a4, &Num(3.0));
         }
-        _ => {
-            assert_eq!(false, true);
-        }
+        x => panic!("Expected list but got {:?}", x),
     }
 
     let code2 = r#"
@@ -124,9 +124,14 @@ fn reading_function_calls() {
             assert_eq!(a3, &Num(2.0));
             assert_eq!(a4, &Num(3.0));
         }
-        _ => {
-            assert_eq!(false, true);
-        }
+        x => panic!("Expected list but got {:?}", x),
+    }
+
+    let code2 = String::from("a (1 2 3)");
+    reader.reset();
+    match reader.read(&code2).unwrap() {
+        Sym(s) => assert_eq!(s, "a".to_string()),
+        x => panic!("Symbol list but got {:?}", x),
     }
 }
 
@@ -147,9 +152,7 @@ fn reading_do_blocks() {
             assert_eq!(a3, &Num(2.0));
             assert_eq!(a4, &Num(3.0));
         }
-        _ => {
-            assert_eq!(false, true);
-        }
+        x => panic!("Expected list but got {:?}", x),
     }
 
     reader.reset();
